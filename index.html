@@ -95,10 +95,20 @@
             <div id="solver" class="section active">
                 <div class="section-card">
                     <h2>🧮 Решатель уравнений</h2>
-                    <p>Решайте любые уравнения моментально!</p>
+                    <p>Решайте уравнения с любыми переменными (x, y, z, a, b, c...)</p>
+                    
+                    <div class="equation-help">
+                        <h4>📝 Примеры уравнений:</h4>
+                        <div class="equation-examples">
+                            <div class="equation-example">2x + 5 = 13</div>
+                            <div class="equation-example">3y - 7 = 8</div>
+                            <div class="equation-example">a + b = 10</div>
+                            <div class="equation-example">2x + 3y = 15</div>
+                        </div>
+                    </div>
                     
                     <div class="solver-input">
-                        <input type="text" id="equationInput" placeholder="Введите уравнение (например: 2x + 5 = 13)">
+                        <input type="text" id="equationInput" placeholder="Введите уравнение (например: 2x + 3y = 10)">
                         <button onclick="solveEquation()">Решить</button>
                     </div>
                     
@@ -249,4 +259,4 @@
         loadAllScripts();
     </script>
 </body>
-</html>
+    </html>
