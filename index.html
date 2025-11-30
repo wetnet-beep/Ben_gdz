@@ -85,8 +85,8 @@
                     <button onclick="showSection('mathOperations')" class="nav-btn">Столбиком</button>
                     <button onclick="showSection('diary')" class="nav-btn">Дневник</button>
                     <button onclick="showSection('notes')" class="nav-btn">Памятки</button>
-                    <button onclick="logout()" class="nav-btn logout">Выйти</button>
                     <button onclick="showSection('keyInfo')" class="nav-btn">Мой ключ</button>
+                    <button onclick="logout()" class="nav-btn logout">Выйти</button>
                 </nav>
             </div>
         </header>
@@ -179,6 +179,41 @@
                     <div id="notesList" class="notes-list"></div>
                 </div>
             </div>
+
+            <!-- Информация о ключе -->
+            <div id="keyInfo" class="section">
+                <div class="section-card">
+                    <h2>🔑 Информация о ключе</h2>
+                    
+                    <div class="key-details">
+                        <div class="key-detail-item">
+                            <strong>Ключ:</strong>
+                            <span id="currentKey">-</span>
+                        </div>
+                        <div class="key-detail-item">
+                            <strong>Активирован:</strong>
+                            <span id="activationDate">-</span>
+                        </div>
+                        <div class="key-detail-item">
+                            <strong>Истекает:</strong>
+                            <span id="expiryDate">-</span>
+                        </div>
+                        <div class="key-detail-item">
+                            <strong>Осталось дней:</strong>
+                            <span id="daysLeft" class="days-counter">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <div class="progress-text" id="progressText"></div>
+                    </div>
+
+                    <button onclick="logout()" class="logout-btn">Выйти из системы</button>
+                </div>
+            </div>
         </div>
 
         <footer class="footer">
@@ -260,4 +295,4 @@
         loadAllScripts();
     </script>
 </body>
-    </html>
+                    </html>
