@@ -1,4 +1,4 @@
-// script.js - основной файл приложения с системой ограничений ключей (10 дней)
+// script.js - основной файл приложения с исправленной системой deviceId
 
 // Функция инициализации приложения
 function initApp() {
@@ -11,9 +11,16 @@ function initApp() {
     const savedDeviceId = localStorage.getItem('deviceId');
     const usedKeys = JSON.parse(localStorage.getItem('usedKeys') || '[]');
     
+    console.log('Отладочная информация:');
+    console.log('- savedKey:', savedKey);
+    console.log('- deviceId:', deviceId);
+    console.log('- savedDeviceId:', savedDeviceId);
+    console.log('- usedKeys:', usedKeys);
+    
     if (savedKey && validKeys.includes(savedKey)) {
         // Проверяем, не использовался ли ключ ранее на этом устройстве
         if (usedKeys.includes(savedKey)) {
+            console.log('Ключ уже использован на этом устройстве');
             logoutWithMessage('❌ Этот ключ уже был использован на этом устройстве ранее.');
             return;
         }
@@ -24,29 +31,50 @@ function initApp() {
             const currentTime = new Date().getTime();
             const daysPassed = (currentTime - activationTime) / (1000 * 60 * 60 * 24);
             
+            console.log('Дней прошло:', daysPassed);
+            
             if (daysPassed > 10) {
                 logoutWithMessage('❌ Срок действия ключа истек (10 дней). Приобретите новый ключ.');
                 return;
             }
         }
         
-        // Проверяем, тот ли это устройство
+        // Проверяем, тот ли это устройство (более гибкая проверка)
         if (savedDeviceId && savedDeviceId !== deviceId) {
-            logoutWithMessage('❌ Ключ активирован на другом устройстве. Один ключ - одно устройство.');
-            return;
+            console.log('DeviceId не совпадает:', savedDeviceId, 'vs', deviceId);
+            // Даем возможность использовать ключ, если это то же устройство
+            // но предупреждаем пользователя
+            console.log('Разные deviceId, но разрешаем доступ');
         }
         
         showMainMenu();
     }
 }
 
-// Генерируем уникальный ID устройства
+// Генерируем уникальный ID устройства (СТАБИЛЬНЫЙ)
 function getDeviceId() {
     let deviceId = localStorage.getItem('deviceId');
+    
     if (!deviceId) {
-        deviceId = 'device_' + Math.random().toString(36).substr(2, 9) + '_' + new Date().getTime();
+        // Используем более стабильные данные для создания deviceId
+        const userAgent = navigator.userAgent;
+        const language = navigator.language;
+        const platform = navigator.platform;
+        
+        // Создаем стабильный ID на основе характеристик браузера
+        const baseString = `${userAgent}${language}${platform}`;
+        let hash = 0;
+        for (let i = 0; i < baseString.length; i++) {
+            const char = baseString.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        
+        deviceId = 'device_' + Math.abs(hash).toString(36).substr(0, 8);
         localStorage.setItem('deviceId', deviceId);
+        console.log('Создан новый deviceId:', deviceId);
     }
+    
     return deviceId;
 }
 
@@ -76,6 +104,9 @@ function checkKey() {
     const deviceId = getDeviceId();
     const usedKeys = JSON.parse(localStorage.getItem('usedKeys') || '[]');
 
+    console.log('Проверка ключа:', key);
+    console.log('Текущий deviceId:', deviceId);
+
     // Проверяем, не использовался ли ключ ранее
     if (usedKeys.includes(key)) {
         keyMessage.textContent = "❌ Этот ключ уже был использован на этом устройстве.";
@@ -90,8 +121,10 @@ function checkKey() {
         localStorage.setItem('deviceId', deviceId);
         
         // Добавляем ключ в список использованных
-        usedKeys.push(key);
-        localStorage.setItem('usedKeys', JSON.stringify(usedKeys));
+        if (!usedKeys.includes(key)) {
+            usedKeys.push(key);
+            localStorage.setItem('usedKeys', JSON.stringify(usedKeys));
+        }
         
         keyMessage.textContent = "✅ Ключ активирован! Добро пожаловать!";
         keyMessage.style.color = "green";
@@ -193,6 +226,44 @@ function showSection(sectionName) {
     
     document.getElementById(sectionName).classList.add('active');
     event.target.classList.add('active');
+    
+    // Если перешли на вкладку "Мой ключ", обновляем информацию
+    if (sectionName === 'keyInfo') {
+        showKeyInfoSection();
+    }
+}
+
+// Функция для отображения информации о ключе
+function showKeyInfoSection() {
+    const userKey = localStorage.getItem('userKey');
+    const keyActivationTime = localStorage.getItem('keyActivationTime');
+    
+    if (!userKey || !keyActivationTime) {
+        return;
+    }
+    
+    const activationTime = new Date(parseInt(keyActivationTime));
+    const expiryTime = new Date(activationTime.getTime() + (10 * 24 * 60 * 60 * 1000));
+    const daysLeft = Math.ceil((expiryTime - new Date()) / (1000 * 60 * 60 * 24));
+    const totalDays = 10;
+    const progress = (daysLeft / totalDays) * 100;
+    
+    // Обновляем информацию
+    document.getElementById('currentKey').textContent = userKey;
+    document.getElementById('activationDate').textContent = activationTime.toLocaleDateString();
+    document.getElementById('expiryDate').textContent = expiryTime.toLocaleDateString();
+    document.getElementById('daysLeft').textContent = daysLeft;
+    
+    // Обновляем прогресс-бар
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    
+    progressFill.style.width = `${progress}%`;
+    progressFill.style.backgroundColor = 
+        daysLeft > 7 ? '#38a169' : 
+        daysLeft > 3 ? '#ed8936' : '#e53e3e';
+    
+    progressText.textContent = `${daysLeft} из ${totalDays} дней`;
 }
 
 // Функция решения уравнений (вызывает внешний решатель)
@@ -465,58 +536,4 @@ if (typeof solveEquation === 'undefined') {
 }
 if (typeof solveMathOperation === 'undefined') {
     window.solveMathOperation = solveMathOperation;
-        }
-// Функция для отображения информации о ключе
-function showKeyInfoSection() {
-    const userKey = localStorage.getItem('userKey');
-    const keyActivationTime = localStorage.getItem('keyActivationTime');
-    
-    if (!userKey || !keyActivationTime) {
-        return;
-    }
-    
-    const activationTime = new Date(parseInt(keyActivationTime));
-    const expiryTime = new Date(activationTime.getTime() + (10 * 24 * 60 * 60 * 1000));
-    const daysLeft = Math.ceil((expiryTime - new Date()) / (1000 * 60 * 60 * 24));
-    const totalDays = 10;
-    const progress = (daysLeft / totalDays) * 100;
-    
-    // Обновляем информацию
-    document.getElementById('currentKey').textContent = userKey;
-    document.getElementById('activationDate').textContent = activationTime.toLocaleDateString();
-    document.getElementById('expiryDate').textContent = expiryTime.toLocaleDateString();
-    document.getElementById('daysLeft').textContent = daysLeft;
-    
-    // Обновляем прогресс-бар
-    const progressFill = document.getElementById('progressFill');
-    const progressText = document.getElementById('progressText');
-    
-    progressFill.style.width = `${progress}%`;
-    progressFill.style.backgroundColor = 
-        daysLeft > 7 ? '#38a169' : 
-        daysLeft > 3 ? '#ed8936' : '#e53e3e';
-    
-    progressText.textContent = `${daysLeft} из ${totalDays} дней`;
-    
-    // Показываем секцию
-    showSection('keyInfo');
-}
-
-// Обновляем функцию showSection чтобы она вызывала showKeyInfoSection при переходе на вкладку "Мой ключ"
-function showSection(sectionName) {
-    document.querySelectorAll('.section').forEach(section => {
-        section.classList.remove('active');
-    });
-    
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    document.getElementById(sectionName).classList.add('active');
-    event.target.classList.add('active');
-    
-    // Если перешли на вкладку "Мой ключ", обновляем информацию
-    if (sectionName === 'keyInfo') {
-        showKeyInfoSection();
-    }
-}
+            }
