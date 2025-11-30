@@ -1,13 +1,53 @@
-// script.js - основной файл приложения
+// script.js - основной файл приложения с системой ограничений ключей (10 дней)
 
 // Функция инициализации приложения
 function initApp() {
     console.log('Приложение инициализировано');
-    // Проверяем сохраненный ключ при загрузке
+    
+    // Проверяем сохраненный ключ и его валидность
     const savedKey = localStorage.getItem('userKey');
+    const keyActivationTime = localStorage.getItem('keyActivationTime');
+    const deviceId = getDeviceId();
+    const savedDeviceId = localStorage.getItem('deviceId');
+    const usedKeys = JSON.parse(localStorage.getItem('usedKeys') || '[]');
+    
     if (savedKey && validKeys.includes(savedKey)) {
+        // Проверяем, не использовался ли ключ ранее на этом устройстве
+        if (usedKeys.includes(savedKey)) {
+            logoutWithMessage('❌ Этот ключ уже был использован на этом устройстве ранее.');
+            return;
+        }
+        
+        // Проверяем, не истек ли срок действия ключа (10 дней)
+        if (keyActivationTime) {
+            const activationTime = parseInt(keyActivationTime);
+            const currentTime = new Date().getTime();
+            const daysPassed = (currentTime - activationTime) / (1000 * 60 * 60 * 24);
+            
+            if (daysPassed > 10) {
+                logoutWithMessage('❌ Срок действия ключа истек (10 дней). Приобретите новый ключ.');
+                return;
+            }
+        }
+        
+        // Проверяем, тот ли это устройство
+        if (savedDeviceId && savedDeviceId !== deviceId) {
+            logoutWithMessage('❌ Ключ активирован на другом устройстве. Один ключ - одно устройство.');
+            return;
+        }
+        
         showMainMenu();
     }
+}
+
+// Генерируем уникальный ID устройства
+function getDeviceId() {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+        deviceId = 'device_' + Math.random().toString(36).substr(2, 9) + '_' + new Date().getTime();
+        localStorage.setItem('deviceId', deviceId);
+    }
+    return deviceId;
 }
 
 // Список валидных ключей
@@ -33,12 +73,37 @@ function checkKey() {
     const keyInput = document.getElementById('keyInput');
     const keyMessage = document.getElementById('keyMessage');
     const key = keyInput.value.trim().toUpperCase();
+    const deviceId = getDeviceId();
+    const usedKeys = JSON.parse(localStorage.getItem('usedKeys') || '[]');
+
+    // Проверяем, не использовался ли ключ ранее
+    if (usedKeys.includes(key)) {
+        keyMessage.textContent = "❌ Этот ключ уже был использован на этом устройстве.";
+        keyMessage.style.color = "red";
+        return;
+    }
 
     if (validKeys.includes(key)) {
+        // Сохраняем ключ и информацию об активации
         localStorage.setItem('userKey', key);
+        localStorage.setItem('keyActivationTime', new Date().getTime().toString());
+        localStorage.setItem('deviceId', deviceId);
+        
+        // Добавляем ключ в список использованных
+        usedKeys.push(key);
+        localStorage.setItem('usedKeys', JSON.stringify(usedKeys));
+        
         keyMessage.textContent = "✅ Ключ активирован! Добро пожаловать!";
         keyMessage.style.color = "green";
-        setTimeout(showMainMenu, 1000);
+        
+        // Показываем информацию о сроке действия
+        setTimeout(() => {
+            const activationTime = new Date(parseInt(localStorage.getItem('keyActivationTime')));
+            const expiryTime = new Date(activationTime.getTime() + (10 * 24 * 60 * 60 * 1000));
+            keyMessage.innerHTML = `✅ Ключ активирован!<br><small>Действителен до: ${expiryTime.toLocaleDateString()}</small>`;
+        }, 1000);
+        
+        setTimeout(showMainMenu, 2000);
     } else {
         keyMessage.textContent = "❌ Неверный ключ. Попробуйте другой или свяжитесь с нами.";
         keyMessage.style.color = "red";
@@ -51,16 +116,70 @@ function showMainMenu() {
     showSection('solver');
     loadDiary();
     loadNotes();
+    showKeyInfo();
+}
+
+function showKeyInfo() {
+    // Показываем информацию о ключе в главном меню
+    const keyActivationTime = localStorage.getItem('keyActivationTime');
+    const userKey = localStorage.getItem('userKey');
+    
+    if (keyActivationTime && userKey) {
+        const activationTime = new Date(parseInt(keyActivationTime));
+        const expiryTime = new Date(activationTime.getTime() + (10 * 24 * 60 * 60 * 1000));
+        const daysLeft = Math.ceil((expiryTime - new Date()) / (1000 * 60 * 60 * 24));
+        
+        // Создаем элемент с информацией о ключе
+        let keyInfo = document.querySelector('.key-info');
+        if (!keyInfo) {
+            keyInfo = document.createElement('div');
+            keyInfo.className = 'key-info';
+            keyInfo.style.cssText = `
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                background: rgba(255,255,255,0.9);
+                padding: 8px 12px;
+                border-radius: 8px;
+                font-size: 12px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                z-index: 1000;
+                max-width: 200px;
+            `;
+            document.getElementById('mainMenu').appendChild(keyInfo);
+        }
+        
+        keyInfo.innerHTML = `
+            <strong>🔑 Ключ активен</strong><br>
+            Осталось дней: <strong style="color: ${daysLeft > 3 ? '#38a169' : daysLeft > 1 ? '#ed8936' : '#e53e3e'}">${daysLeft}</strong><br>
+            <small>Истекает: ${expiryTime.toLocaleDateString()}</small>
+        `;
+    }
+}
+
+function logoutWithMessage(message) {
+    const keyMessage = document.getElementById('keyMessage');
+    keyMessage.textContent = message;
+    keyMessage.style.color = "red";
+    logout();
 }
 
 function logout() {
+    // Не удаляем deviceId и usedKeys при выходе, только данные сессии
     localStorage.removeItem('userKey');
+    localStorage.removeItem('keyActivationTime');
     localStorage.removeItem('grades');
     localStorage.removeItem('notes');
+    
     document.getElementById('mainMenu').classList.remove('active');
     document.getElementById('keyScreen').classList.add('active');
     document.getElementById('keyInput').value = '';
-    document.getElementById('keyMessage').textContent = '';
+    
+    // Удаляем информацию о ключе из интерфейса
+    const keyInfo = document.querySelector('.key-info');
+    if (keyInfo) {
+        keyInfo.remove();
+    }
 }
 
 function showSection(sectionName) {
@@ -203,7 +322,7 @@ function addGrade() {
         return;
     }
     
-    const grades = JSON.parse(localStorage.getItem('grades')) || [];
+    const grades = JSON.parse(localStorage.getItem('grades') || '[]');
     grades.push({
         subject,
         grade: parseInt(grade),
@@ -220,7 +339,7 @@ function addGrade() {
 }
 
 function loadDiary() {
-    const grades = JSON.parse(localStorage.getItem('grades')) || [];
+    const grades = JSON.parse(localStorage.getItem('grades') || '[]');
     const gradesList = document.getElementById('gradesList');
     const averageGrade = document.getElementById('averageGrade');
     
@@ -262,7 +381,7 @@ function loadDiary() {
 }
 
 function deleteGrade(index) {
-    const grades = JSON.parse(localStorage.getItem('grades')) || [];
+    const grades = JSON.parse(localStorage.getItem('grades') || '[]');
     grades.splice(index, 1);
     localStorage.setItem('grades', JSON.stringify(grades));
     loadDiary();
@@ -277,7 +396,7 @@ function addNote() {
         return;
     }
     
-    const notes = JSON.parse(localStorage.getItem('notes')) || [];
+    const notes = JSON.parse(localStorage.getItem('notes') || '[]');
     notes.push({
         text: noteText,
         date: new Date().toLocaleString()
@@ -290,7 +409,7 @@ function addNote() {
 }
 
 function loadNotes() {
-    const notes = JSON.parse(localStorage.getItem('notes')) || [];
+    const notes = JSON.parse(localStorage.getItem('notes') || '[]');
     const notesList = document.getElementById('notesList');
     
     notesList.innerHTML = '';
@@ -313,7 +432,7 @@ function loadNotes() {
 }
 
 function deleteNote(index) {
-    const notes = JSON.parse(localStorage.getItem('notes')) || [];
+    const notes = JSON.parse(localStorage.getItem('notes') || '[]');
     notes.splice(index, 1);
     localStorage.setItem('notes', JSON.stringify(notes));
     loadNotes();
@@ -346,4 +465,4 @@ if (typeof solveEquation === 'undefined') {
 }
 if (typeof solveMathOperation === 'undefined') {
     window.solveMathOperation = solveMathOperation;
-                                              }
+        }
