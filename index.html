@@ -297,3 +297,30 @@
     </script>
 </body>
                     </html>
+<!-- Добавляем в main-content после notes -->
+<div id="ocrScanner" class="section">
+    <div class="section-card">
+        <h2>📷 Сканер текста с фото</h2>
+        <p>Загрузите фото с уравнением или текстом</p>
+        
+        <div class="ocr-controls">
+            <input type="file" id="imageInput" accept="image/*" capture="camera">
+            <button onclick="processImage()" class="ocr-btn">Распознать текст</button>
+        </div>
+        
+        <div class="image-preview">
+            <img id="imagePreview" src="" alt="Предпросмотр">
+        </div>
+        
+        <div id="ocrResult" class="result"></div>
+        
+        <div class="ocr-help">
+            <h4>📝 Советы:</h4>
+            <ul>
+                <li>Используйте хорошее освещение</li>
+                <li>Текст должен быть четким</li>
+                <li>Можно сфотографировать уравнение с тетради</li>
+            </ul>
+        </div>
+    </div>
+</div>
